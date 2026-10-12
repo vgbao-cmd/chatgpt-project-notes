@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict');
+require('../core.js');
+const p=PN.newProject('Sushi');
+p.fields.goal='Game Android';p.fields.ideas='Multiplayer';p.fields.decisions='Level 5';
+p.notes=[{id:PN.uid(),text:'Chưa chốt co-op',category:'idea',source:'',title:'',createdAt:PN.now()},{id:PN.uid(),text:'Không tự phục vụ bia',category:'decision',source:'https://chatgpt.com/c/abc',title:'Chat',createdAt:PN.now()}];
+p.tasks=[{id:PN.uid(),text:'Làm UI',done:false},{id:PN.uid(),text:'Catalog',done:true}];
+const context=PN.buildContext(p,['goal','decisions'],true,true);
+assert(context.includes('Level 5'));assert(context.includes('Làm UI'));assert(!context.includes('Catalog'));assert(!context.includes('Chưa chốt co-op'));assert(!context.includes('Multiplayer'));
+assert(PN.buildContext(p,['ideas'],true,false).includes('Chưa chốt co-op'));
+assert(PN.markdown(p).includes('- [x] Catalog'));
+const backup={version:1,projects:[p],activeId:p.id};
+const parsed=PN.validateBackup(JSON.parse(JSON.stringify(backup)));
+assert.equal(parsed.projects[0].fields.goal,p.fields.goal);assert.equal(parsed.activeId,p.id);assert.notEqual(parsed.projects[0].notes[0].id,p.notes[0].id);
+assert.throws(()=>PN.validateBackup({...backup,version:2}));assert.throws(()=>PN.validateBackup({...backup,projects:[p,p]}));
+assert.throws(()=>PN.url('javascript:alert(1)'));assert.throws(()=>PN.url('https://chatgpt.com.evil.test/c/abc'));assert.throws(()=>PN.str('x'.repeat(20001)));
+const bad=structuredClone(backup);bad.projects[0].notes[0].source='https://evil.test';assert.throws(()=>PN.validateBackup(bad));
+console.log('Core checks passed: context filtering, checklist, backup, validation, URL safety.');

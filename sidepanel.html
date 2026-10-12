@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Project Notes</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><div class="brand"><span class="mark">▤</span><div><strong>Project Notes</strong><small>Keep your project moving</small></div><span class="local">LOCAL</span><button id="openTab" class="icon-btn" title="Open editor in a browser tab" aria-label="Open editor in a browser tab">↗</button></div>
+<div class="project-picker"><select id="projectSelect" aria-label="Select project"></select><button id="newProject" title="Create project">＋</button></div></header>
+<nav aria-label="Navigation"><button data-view="overview" class="active">Overview</button><button data-view="notes">Notes</button><button data-view="tasks">Checklist</button><button data-view="chats">Chat</button><button data-view="settings">Data</button></nav>
+<main id="main"></main>
+<footer><button id="context" class="primary">Insert context →</button><small id="saveStatus">Saved in this browser</small></footer>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="dialog"><div id="dialogContent"></div></dialog>
+<input id="importFile" type="file" accept=".json,application/json" hidden>
+<script src="core.js"></script><script src="sidepanel.js"></script>
+</body></html>

@@ -1,0 +1,25 @@
+const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+let stored={},listener,menuListener,installed,menus=[];
+const ctx=vm.createContext({console,crypto,URL,structuredClone,chrome:{runtime:{getURL:()=> 'chrome-extension://test/',onInstalled:{addListener:fn=>installed=fn},onMessage:{addListener:fn=>listener=fn}},storage:{local:{get:async key=>({[key]:structuredClone(stored[key])}),set:async v=>Object.assign(stored,structuredClone(v))}},sidePanel:{setPanelBehavior:async()=>{},open:async()=>{}},contextMenus:{removeAll:cb=>{menus=[];cb()},create:menu=>menus.push(menu),onClicked:{addListener:fn=>menuListener=fn}}}});
+ctx.importScripts=file=>vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'..',file),'utf8'),ctx);
+vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'..','background.js'),'utf8'),ctx);
+const request=msg=>new Promise(resolve=>listener(msg,{url:'chrome-extension://test/sidepanel.html'},resolve));
+(async()=>{
+installed();assert.equal(menus.length,4);
+let r=await request({type:'create',name:'Project A'});assert(r.ok);const a=r.state.activeId;
+r=await request({type:'create',name:'Project B'});const b=r.state.activeId;
+await request({type:'addChat',projectId:a,url:'https://chatgpt.com/c/source',title:'Source'});
+menuListener({menuItemId:'save-decision',selectionText:'Linked decision',pageUrl:'https://chatgpt.com/c/source'},{windowId:1,title:'ChatGPT'});
+r=await request({type:'get'});assert.equal(r.state.activeId,a);assert.equal(r.state.projects.find(p=>p.id===a).notes[0].text,'Linked decision');assert.equal(r.state.projects.find(p=>p.id===b).notes.length,0);
+await request({type:'select',projectId:b});
+menuListener({menuItemId:'save-idea',selectionText:'Active idea',pageUrl:'https://chatgpt.com/c/other'},{windowId:1,title:'ChatGPT'});
+r=await request({type:'get'});assert.equal(r.state.projects.find(p=>p.id===b).notes[0].category,'idea');
+await Promise.all(Array.from({length:25},(_,i)=>request({type:'addTask',projectId:a,text:'Task '+i})));
+r=await request({type:'get'});assert.equal(r.state.projects.find(p=>p.id===a).tasks.length,25);
+const p=r.state.projects.find(p=>p.id===a);
+r=await request({type:'saveFields',projectId:a,revision:p.revision-1,name:'Wrong',fields:p.fields});assert(!r.ok);
+r=await request({type:'addNote',projectId:a,text:'test',source:'https://evil.test'});assert(!r.ok);
+const blocked=listener({type:'get'},{url:'https://chatgpt.com',tab:{id:1}},()=>{throw Error('leaked')});assert.equal(blocked,false);
+r=await request({type:'delete',projectId:b});assert(r.ok);assert.equal(r.state.activeId,a);
+console.log('Worker checks passed: context-menu routing, 25 serialized concurrent writes, stale-save rejection, source validation, content-script access boundary, delete fallback.');
+})().catch(e=>{console.error(e);process.exitCode=1});
